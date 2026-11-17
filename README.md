@@ -48,3 +48,49 @@ gunzip owt_valid.txt.gz
 cd ..
 ```
 
+---
+
+## My Progress (Student Work)
+
+> **Authorship:** All implementation code in this repository (`cs336_basics/`, notebooks, and the
+> wiring in `tests/adapters.py`) is my own work as a CS336 student. An AI assistant was used only
+> as a teaching aid, as allowed by [CLAUDE.md](./CLAUDE.md): it reviewed code, explained profiler
+> output, and suggested what to investigate. It did not write or edit assignment code.
+
+### Status
+
+| Problem | Status |
+|---|---|
+| `train_bpe` — BPE tokenizer training | ✅ `tests/test_train_bpe.py` passing; optimization in progress |
+| `train_bpe_tinystories` | 🔲 Not started |
+| `train_bpe_expts_owt` | 🔲 Not started |
+
+### Files
+
+| Path | Purpose |
+|---|---|
+| [`cs336_basics/pretokenization.py`](./cs336_basics/pretokenization.py) | Splits the corpus into chunks on special-token boundaries and counts pre-tokens in parallel (`multiprocessing.Pool`) |
+| [`cs336_basics/bpe_train.py`](./cs336_basics/bpe_train.py) | BPE training loop: builds byte-level vocab, counts pairs, applies merges |
+| [`cs336_basics/test.ipynb`](./cs336_basics/test.ipynb) | Scratch notebook for running and profiling `train_bpe` |
+| [`tasks/todo.md`](./tasks/todo.md) | Optimization task checklist and profiling notes |
+
+### Run
+
+```sh
+# Unit tests for BPE training
+uv run pytest tests/test_train_bpe.py
+
+# Profile BPE training (results saved to bpe.prof)
+uv run python -m cProfile -o bpe.prof -m pytest tests/test_train_bpe.py::test_train_bpe
+uv run python -m pstats bpe.prof        # then: sort tottime / stats cs336_basics 15
+```
+
+### Profiling notes
+
+| Dataset | vocab_size | Finding |
+|---|---|---|
+| `tests/fixtures/corpus.en` | 500 | `_merge_word` ≈ 83% of training time |
+| `TinyStoriesV2-GPT4-valid.txt` | 1000 | `_merge_word` ≈ 92%; ~9.7M calls (13,111 unique words × 743 merges) |
+
+Next steps are tracked in [`tasks/todo.md`](./tasks/todo.md).
+
