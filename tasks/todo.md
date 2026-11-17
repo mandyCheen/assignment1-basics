@@ -26,7 +26,8 @@
 
 ## Phase 1 — Correctness / robustness
 
-- [ ] **T1-1** `pretokenization.py:89-90`: the loop overwrites `boundaries` on every pass, and `boundaries` is undefined when `special_tokens=[]`.
+- [x] **T1-1** `pretokenization.py:89-90`: the loop overwrites `boundaries` on every pass, and `boundaries` is undefined when `special_tokens=[]`.
+  - Fixed: `find_chunk_boundaries` now takes a list of special tokens and cuts at the earliest match; `pretokenize` calls it once.
 - [ ] **T1-2** `pretokenization.py:25`: with `special_tokens=[]`, the split pattern becomes an empty string.
 - [ ] **T1-3** Remove pairs whose count drops to 0 from `pair_counter`, so the `if not pair_counter` check on line 48 works.
 
