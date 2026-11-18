@@ -53,10 +53,11 @@ def train_bpe(
         # Find the most frequent pair
         most_frequent_pair = max(pair_counter.items(), key=lambda x: (x[1], x[0]))[0]
 
-        # Update vocab and counter
-        vocab[len(vocab)] = b"".join(most_frequent_pair)
-
         new_token = b"".join(most_frequent_pair)
+
+        # Update vocab and counter
+        vocab[len(vocab)] = new_token
+
         words_to_update = list(pair_to_word_dict.get(most_frequent_pair, set()))
 
         for word in words_to_update:
@@ -83,8 +84,4 @@ def train_bpe(
     
     return (vocab, merges)
         
-
-
-
-
 
