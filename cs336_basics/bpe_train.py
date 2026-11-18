@@ -65,15 +65,14 @@ def train_bpe(
 
             for token_pair in zip(tokens, tokens[1:]):
                 pair_counter[token_pair] -= word_counter[word]
-
+                if pair_counter[token_pair] == 0:
+                    del pair_counter[token_pair]
 
             for token_pair in zip(new_tokens, new_tokens[1:]):
                 pair_counter[token_pair] += word_counter[word]
                 
             word_tokens[word] = new_tokens  
 
-
-        del pair_counter[most_frequent_pair]
         merges.append(most_frequent_pair)
     
     return (vocab, merges)
