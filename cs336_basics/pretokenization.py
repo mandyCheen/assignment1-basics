@@ -13,7 +13,7 @@ def _process_chunk(
     input_path: str | os.PathLike,
     start: int,
     end: int,
-    special_tokens: str
+    special_tokens: list[str]
 ) -> Counter:
 
     with open(input_path, "rb") as f:
@@ -22,8 +22,14 @@ def _process_chunk(
 
     counter = Counter()
 
-    pattern = "|".join(re.escape(t) for t in special_tokens)
-    segments = re.split(f"{pattern}", chunk.decode("utf-8"))
+    text = chunk.decode("utf-8")
+
+    if special_tokens:
+        sorted_tokens = sorted(special_tokens, key=len, reverse=True)
+        pattern = "|".join(re.escape(t) for t in sorted_tokens)
+        segments = re.split(pattern, text)
+    else:
+        segments = [text]
 
     for seg in segments:
         for m in re.finditer(PAT, seg):
