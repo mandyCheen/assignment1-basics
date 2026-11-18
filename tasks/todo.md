@@ -28,14 +28,25 @@
 
 - [x] **T1-1** `pretokenization.py:89-90`: the loop overwrites `boundaries` on every pass, and `boundaries` is undefined when `special_tokens=[]`.
   - Fixed: `find_chunk_boundaries` now takes a list of special tokens and cuts at the earliest match; `pretokenize` calls it once.
-- [ ] **T1-2** `pretokenization.py:25`: with `special_tokens=[]`, the split pattern becomes an empty string.
-- [ ] **T1-3** Remove pairs whose count drops to 0 from `pair_counter`, so the `if not pair_counter` check on line 48 works.
+- [x] **T1-2** `pretokenization.py:25`: with `special_tokens=[]`, the split pattern becomes an empty string.
+- [x] **T1-3** Remove pairs whose count drops to 0 from `pair_counter`, so the `if not pair_counter` check on line 48 works.
 
 ## Phase 2 — Merge loop (⭐ top priority, backed by profile data)
 
-- [ ] **T2-1** Build a "pair → words containing that pair" index so each merge only touches affected words.
-  - First work out on paper: after a merge, which index entries are added and which are removed? Use `[A, B, C]` merging `(A, B)` as the example.
-  - Done when: tests pass and `_merge_word` ncalls drops well below ~9.7M.
+- [x] **T2-1** Build a "pair → words containing that pair" index so each merge only touches affected words.
+  - Done when: tests pass and `_merge_word` ncalls drops well below ~9.7M. ✅ `pytest tests/test_train_bpe.py` passes and the invariant check (recompute pair counts / index from scratch after each merge) matches — both run by the student.
+  - **Implementation (2026-11-18):** `pair_to_word_dict: pair → set[word]`. Each merge takes a snapshot `list(...)` of the merged pair's word set. For every word in it: subtract all old pairs from `pair_counter` and `discard` the word from each old pair's set (deleting emptied sets), run `_merge_word`, then add all new pairs back to the counter and the index. The index therefore always matches reality: a word is in a pair's set iff it currently contains that pair (no duplicates, no stale entries).
+  - **Result** — `TinyStoriesV2-GPT4-valid.txt`, `vocab_size=1000`, `test_notebook.ipynb`, single run each:
+
+    | Metric | Baseline (T0-1 / T0-3) | After T2-1 | Change |
+    |---|---|---|---|
+    | `%%time` Wall time | 5.16 s | **1.05 s** | ≈ 4.9× faster |
+    | `%%time` CPU time (total, main process) | 4.14 s | 0.40 s | ≈ 10× less |
+    | `_merge_word` ncalls (`%%prun`) | 9,741,473 | **44,850** | ≈ 217× fewer (~60 words per merge) |
+
+  - **Where time goes now** (`%%prun`, 1.31 s total, profiler-inflated; ratios only, varies run to run): `max` incl. its `lambda` 0.48 s (~36%); waiting on pretokenize workers (`posix.read`) 0.73 s cumulative; `train_bpe` self time 0.20 s; `_merge_word` 0.08 s. (`kqueue` / `select` rows are the Jupyter event loop, ignore.)
+  - Note: switching to the exact set-based index cut `_merge_word` calls by ~24% vs the previous list-based version (59,062 → 44,850), but wall time did not visibly improve (single-run noise is about the same size). `_merge_word` is now a tiny share of the total, so the next real gains are `max` (T2-2) and pretokenize (Phase 3).
+
 - [ ] **T2-3** Small cleanups: the duplicate `b"".join` (lines 56 / 58), the `new_tokens == tokens` check that may become unnecessary after T2-1, and the repeated `len` calls inside `_merge_word`.
 - [ ] **T2-2** Re-profile after T2-1. **Only if** `max` becomes the main bottleneck: switch to a structure that can get the max quickly while keeping the `(count, pair)` tie-break.
 
@@ -56,6 +67,11 @@
 
 - [ ] **T5-1** `train_bpe_tinystories` (vocab 10,000): record runtime, peak memory, and the longest token; serialize vocab/merges; answer (b) about which part takes the most time.
 - [ ] **T5-2** `train_bpe_expts_owt` (vocab 32,000): run in the background with `caffeinate`; record the longest token; compare with TinyStories.
+
+## Backlog (optional optimizations, do only if profiling says it's worth it)
+
+- [ ] **B-1** Only update the pairs that actually changed in `train_bpe`'s per-word update. Currently every processed word has *all* its old pairs removed and *all* new pairs added back, including pairs the merge did not touch: their counts are subtracted then re-added, and a pair's index set that contains only this word is deleted then re-created. Instead, compare the word's old pairs with its new pairs (set difference): remove the word / subtract counts only for pairs that disappeared, add only for pairs that appeared. This is an optimization, not a correctness fix. Decide after re-profiling: if `train_bpe`'s own time is small compared with `max` and pretokenize, skip it.
+- [ ] **B-2** Remove the redundant `if most_frequent_pair in pair_to_word_dict: del ...` at the end of each merge: the merged pair's set is already emptied and deleted while its words are processed. (Fold into T2-3.)
 
 ---
 
