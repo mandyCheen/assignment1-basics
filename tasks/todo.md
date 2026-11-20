@@ -49,18 +49,26 @@
 
 - [x] **T2-2** Small cleanups: the duplicate `b"".join` (lines 56 / 58), the `new_tokens == tokens` check that may become unnecessary after T2-1.
 - [ ] **T2-3** Re-profile after T2-1. **Only if** `max` becomes the main bottleneck: switch to a structure that can get the max quickly while keeping the `(count, pair)` tie-break.
+  - Deferred: merge loop is only 3% at vocab 1000. Re-profile at vocab 10,000 (T5-1); do it if `max` > ~50% of total.
 
 ## Phase 3 — Pretokenization memory / speed (before running the full train set)
 
-- [ ] **T3-0** Run `vocab_size=1000` on the full `TinyStoriesV2-GPT4-train.txt` and check whether pretokenize's share of the time grows noticeably.
-- [ ] **T3-1** Decouple the number of chunks from the number of processes (many small chunks handed to the pool); compare peak memory with `/usr/bin/time -l`.
-- [ ] **T3-2** Set the process count from `os.cpu_count()` or make it a parameter.
+- [x] **T3-0** Run `vocab_size=1000` on the full `TinyStoriesV2-GPT4-train.txt` and check whether pretokenize's share of the time grows noticeably.
+  - **Result** — train, vocab 1000, 6 processes, 64 chunks: pretokenize **38.42 s (97%)**, merge loop 1.23 s (3%). On valid, pretokenize was ~56%.
+  - Merge cost follows the number of distinct words, not corpus size → `max` (T2-3) not worth touching at vocab 1000.
+- [x] **T3-1** Decouple the number of chunks from the number of processes; compare peak memory with `/usr/bin/time -l`.
+  - Implemented (`num_chunks` param), pytest passes.
+  - [x] Check: `pretokenize` returns the same Counter for chunks = 1 / 8 / 64 (valid set).
+  - [x] Sweep chunks 8 / 64 / 256 at 4 processes: peak memory + pretokenize time.
+- [ ] **T3-2** Process count: sweep 1 / 2 / 4 / 6 at 64 chunks; check whether speedup is near-linear.
+- [ ] **T3-3** Throughput is ~57 MB/s total. `%%prun` one chunk in one process; optimize only if the data says so.
 
 ## Phase 4 — Structure refactor (OOP; after the performance work)
 
 - [ ] **T4-1** List the separate jobs `train_bpe` currently does and decide which should be split out.
 - [ ] **T4-2** Decide whether the training state (word counts, pair counts, index) belongs in one object, based on whether these must always be updated together to stay consistent.
 - [ ] **T4-3** Design vocab/merges serialization so the later `Tokenizer` (`from_files`) can reuse it.
+  - Currently `pickle` (`save_bpe` / `load_bpe`); revisit for `Tokenizer.from_files`.
 - [ ] **T4-4** Avoid over-design: every extracted unit should be testable on its own with one small test.
 
 ## Phase 5 — Experiments (graded write-up answers)

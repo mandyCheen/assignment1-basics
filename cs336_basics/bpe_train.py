@@ -113,11 +113,12 @@ def main() -> int:
     parser.add_argument("--vocab-size", type=int, required=True)
     parser.add_argument("--special-tokens", nargs="*", default=["<|endoftext|>"])
     parser.add_argument("--output", default="out/bpe.pkl", help="Output file path, e.g. out/bpe.pkl")
-    parser.add_argument("--num-processes", type=int, default=None)
+    parser.add_argument("--num-processes", type=int, default=4)
+    parser.add_argument("--num-chunks", type=int, default=8)
     args = parser.parse_args()
 
     t0 = time.perf_counter()
-    word_counter = pretokenize(args.input, args.special_tokens)
+    word_counter = pretokenize(args.input, args.special_tokens, args.num_processes, args.num_chunks)
     t1 = time.perf_counter()
 
     vocab, merges = train_bpe_from_counts(

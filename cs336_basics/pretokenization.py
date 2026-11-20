@@ -88,13 +88,14 @@ def find_chunk_boundaries(
 def pretokenize(
     input_path: str | os.PathLike,
     special_tokens: list[str],
-    num_processes: int = 4
+    num_processes: int = 4,
+    num_chunks: int = 8,
 ) -> Counter:
 
     special_tokens_bytes = [t.encode("utf-8") for t in special_tokens]
 
     with open(input_path, "rb") as f:
-        boundaries = find_chunk_boundaries(f, num_processes, special_tokens_bytes)
+        boundaries = find_chunk_boundaries(f, num_chunks, special_tokens_bytes)
 
     # Create a pool of worker processes
     with multiprocessing.Pool(processes=num_processes) as pool:
