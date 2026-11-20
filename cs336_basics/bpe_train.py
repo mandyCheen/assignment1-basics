@@ -1,7 +1,24 @@
 import os
+import pickle
+import argparse
+import time
 
-from .pretokenization import pretokenize
+from cs336_basics.pretokenization import pretokenize
 from collections import Counter
+
+
+def save_bpe(vocab, merges, out_path) -> None:
+    out_dir = os.path.dirname(out_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(out_path, "wb") as f:
+        pickle.dump({"vocab": vocab, "merges": merges}, f)
+
+
+def load_bpe(in_path):
+    with open(in_path, "rb") as f:
+        data = pickle.load(f)
+    return data["vocab"], data["merges"]
 
 
 def _merge_word(tokens, pair, new_token):
@@ -15,13 +32,8 @@ def _merge_word(tokens, pair, new_token):
             i += 1                 
     return out
 
-def train_bpe(
-    input_path: str | os.PathLike,
-    vocab_size: int,
-    special_tokens: list[str]
-) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    
-    word_counter = pretokenize(input_path, special_tokens)
+
+def train_bpe_from_counts(word_counter, vocab_size, special_tokens):
 
     # Convert word to token
     word_tokens = {
@@ -81,7 +93,50 @@ def train_bpe(
             word_tokens[word] = new_tokens  
 
         merges.append(most_frequent_pair)
+
+    return vocab, merges
+
+def train_bpe(
+    input_path: str | os.PathLike,
+    vocab_size: int,
+    special_tokens: list[str]
+) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     
-    return (vocab, merges)
+    word_counter = pretokenize(input_path, special_tokens)
+
+    return train_bpe_from_counts(word_counter, vocab_size, special_tokens)
         
 
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Train a byte-level BPE tokenizer.")
+    parser.add_argument("--input", required=True, help="Path to the training corpus")
+    parser.add_argument("--vocab-size", type=int, required=True)
+    parser.add_argument("--special-tokens", nargs="*", default=["<|endoftext|>"])
+    parser.add_argument("--output", default="out/bpe.pkl", help="Output file path, e.g. out/bpe.pkl")
+    parser.add_argument("--num-processes", type=int, default=None)
+    args = parser.parse_args()
+
+    t0 = time.perf_counter()
+    word_counter = pretokenize(args.input, args.special_tokens)
+    t1 = time.perf_counter()
+
+    vocab, merges = train_bpe_from_counts(
+        word_counter, args.vocab_size, args.special_tokens
+    )
+    t2 = time.perf_counter()
+
+    save_bpe(vocab, merges, args.output)
+    vocab2, merges2 = load_bpe(args.output)
+    assert vocab == vocab2, "vocab roundtrip mismatch"
+    assert merges == merges2, "merges roundtrip mismatch"
+
+    print(f"pretokenize : {t1 - t0:.2f}s")
+    print(f"merge loop  : {t2 - t1:.2f}s")
+    print(f"total       : {t2 - t0:.2f}s")
+    print(f"vocab size  : {len(vocab)}, merges: {len(merges)}")
+    print(f"saved to    : {args.output} (roundtrip OK)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -48,7 +48,7 @@
   - Note: switching to the exact set-based index cut `_merge_word` calls by ~24% vs the previous list-based version (59,062 → 44,850), but wall time did not visibly improve (single-run noise is about the same size). `_merge_word` is now a tiny share of the total, so the next real gains are `max` (T2-2) and pretokenize (Phase 3).
 
 - [x] **T2-2** Small cleanups: the duplicate `b"".join` (lines 56 / 58), the `new_tokens == tokens` check that may become unnecessary after T2-1.
-- [] **T2-3** Re-profile after T2-1. **Only if** `max` becomes the main bottleneck: switch to a structure that can get the max quickly while keeping the `(count, pair)` tie-break.
+- [ ] **T2-3** Re-profile after T2-1. **Only if** `max` becomes the main bottleneck: switch to a structure that can get the max quickly while keeping the `(count, pair)` tie-break.
 
 ## Phase 3 — Pretokenization memory / speed (before running the full train set)
 
