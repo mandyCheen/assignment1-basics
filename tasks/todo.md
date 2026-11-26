@@ -8,15 +8,13 @@
 
 ---
 
-## ✅ Done
+## Phase 0 — Baseline numbers
 
 - [x] **T0-1** Profile baseline
   - `corpus.en`: `_merge_word` ≈ 83% of `train_bpe` time.
   - TinyStories valid (vocab 1000): `_merge_word` ≈ 92%; ~9.7M calls = 13,111 words × 743 merges.
 - [x] Fix special-token handling in `re.split` (special tokens no longer get pretokenized).
 - [x] Fix pair-count update after a merge (subtract all old pairs, add all new pairs).
-
-## Phase 0 — Baseline numbers
 
 - [x] **T0-3** Time the valid set (vocab 1000) **without** the profiler (`%%time`) and record the real runtime.
   - **Baseline (2026-11-17)** — `TinyStoriesV2-GPT4-valid.txt`, `vocab_size=1000`, `%%time` in `test.ipynb`, single run:
