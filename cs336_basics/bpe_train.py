@@ -117,25 +117,46 @@ def main() -> int:
     parser.add_argument("--num-chunks", type=int, default=8)
     args = parser.parse_args()
 
+    print("=== BPE training ===")
+    print(f"input        : {args.input}")
+    print(f"vocab size   : {args.vocab_size}")
+    print(f"special toks : {args.special_tokens}")
+    print(f"processes    : {args.num_processes}, chunks: {args.num_chunks}")
+    print(f"output       : {args.output}")
+    print()
+
+    print("[1/3] Pretokenizing...")
+
     t0 = time.perf_counter()
     word_counter = pretokenize(args.input, args.special_tokens, args.num_processes, args.num_chunks)
     t1 = time.perf_counter()
 
+    print(f"[1/3] Done in {t1 - t0:.2f}s "
+          f"({len(word_counter)} unique pre-tokens, "
+          f"{sum(word_counter.values())} total)")
+    print()
+
+    print("[2/3] Running merge loop...")
     vocab, merges = train_bpe_from_counts(
         word_counter, args.vocab_size, args.special_tokens
     )
     t2 = time.perf_counter()
 
+    print(f"[2/3] Done in {t2 - t1:.2f}s")
+    print()
+
+    print("[3/3] Saving and verifying round-trip...")
     save_bpe(vocab, merges, args.output)
     vocab2, merges2 = load_bpe(args.output)
     assert vocab == vocab2, "vocab roundtrip mismatch"
     assert merges == merges2, "merges roundtrip mismatch"
 
+
+    print("=== Summary ===")
     print(f"pretokenize : {t1 - t0:.2f}s")
     print(f"merge loop  : {t2 - t1:.2f}s")
     print(f"total       : {t2 - t0:.2f}s")
     print(f"vocab size  : {len(vocab)}, merges: {len(merges)}")
-    print(f"saved to    : {args.output} (roundtrip OK)")
     return 0
 
 
